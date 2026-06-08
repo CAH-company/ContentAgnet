@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"D:\\\\AgentContent\\\\content-agent\" -Recurse -File | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\"D:\\\\AgentContent\\\\content-agent\\\\\", \"\"\\) } | Sort-Object)"
+    ]
+  }
+}

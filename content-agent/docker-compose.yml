@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  api:
+    build: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - chromadb
+    volumes:
+      - ./backend:/app
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    command: rq worker content --url ${REDIS_URL}
+    depends_on:
+      - redis
+      - chromadb
+    volumes:
+      - ./backend:/app
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  chromadb:
+    image: chromadb/chroma:latest
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+
+volumes:
+  redis_data:
+  chroma_data:
