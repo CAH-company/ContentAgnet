@@ -1,17 +1,26 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import { api } from '@/lib/api'
 import { Task } from '@/lib/types'
 import { TaskList } from '@/components/TaskList'
 import Link from 'next/link'
 
-export const revalidate = 0
+export default function DashboardPage() {
+  const [tasks, setTasks] = useState<Task[]>([])
 
-export default async function DashboardPage() {
-  let tasks: Task[] = []
-  try {
-    tasks = await api.tasks.list()
-  } catch {
-    // backend may not be running during build
+  const fetchTasks = async () => {
+    try {
+      const data = await api.tasks.list()
+      setTasks(data)
+    } catch {}
   }
+
+  useEffect(() => {
+    fetchTasks()
+    const interval = setInterval(fetchTasks, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   const counts = {
     review: tasks.filter(t => t.status === 'review').length,
