@@ -23,8 +23,7 @@ export default function LoginPage() {
       setError('Nieprawidłowy email lub hasło')
       setLoading(false)
     } else {
-      router.push('/')
-      router.refresh()
+      window.location.href = '/'
     }
   }
 
