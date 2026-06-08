@@ -1,11 +1,12 @@
 import { api } from '@/lib/api'
+import { Task } from '@/lib/types'
 import { TaskList } from '@/components/TaskList'
 import Link from 'next/link'
 
 export const revalidate = 0
 
 export default async function DashboardPage() {
-  let tasks = []
+  let tasks: Task[] = []
   try {
     tasks = await api.tasks.list()
   } catch {

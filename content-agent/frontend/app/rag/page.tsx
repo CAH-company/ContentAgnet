@@ -1,10 +1,11 @@
 import { api } from '@/lib/api'
+import { RagDocument } from '@/lib/types'
 import { RagManager } from '@/components/RagManager'
 
 export const revalidate = 0
 
 export default async function RagPage() {
-  let docs = []
+  let docs: RagDocument[] = []
   try {
     docs = await api.rag.list()
   } catch {
