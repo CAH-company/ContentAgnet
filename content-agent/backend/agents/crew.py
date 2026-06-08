@@ -151,9 +151,15 @@ class ContentMarketingCrew:
 
         result = crew.kickoff()
 
-        if hasattr(crew, 'usage_metrics'):
-            token_input = crew.usage_metrics.get('prompt_tokens', 0)
-            token_output = crew.usage_metrics.get('completion_tokens', 0)
+        # Obsługa różnych formatów usage_metrics (crewai 0.51+)
+        metrics = getattr(crew, 'usage_metrics', None)
+        if metrics is not None:
+            if isinstance(metrics, dict):
+                token_input = metrics.get('prompt_tokens', 0)
+                token_output = metrics.get('completion_tokens', 0)
+            else:
+                token_input = getattr(metrics, 'prompt_tokens', 0) or 0
+                token_output = getattr(metrics, 'completion_tokens', 0) or 0
 
         return {
             "content": str(result),
