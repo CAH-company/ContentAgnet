@@ -1,10 +1,14 @@
 import { Task, RagDocument } from './types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_KEY = process.env.NEXT_PUBLIC_API_SECRET_KEY || ''
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': API_KEY,
+    },
     ...options,
   })
   if (!res.ok) {
@@ -46,6 +50,7 @@ export const api = {
       form.append('doc_type', doc_type)
       return fetch(`${API_URL}/api/rag/documents/upload`, {
         method: 'POST',
+        headers: { 'X-API-Key': API_KEY },
         body: form,
       }).then(r => r.json()) as Promise<{ message: string }>
     },

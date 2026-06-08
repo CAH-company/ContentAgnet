@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Security
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 from typing import Optional
 import os
@@ -14,6 +15,15 @@ load_dotenv()
 
 app = FastAPI(title="Content Agent API")
 
+# API key guard — wszystkie endpointy wymagają nagłówka X-API-Key
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
+
+def verify_api_key(key: str = Security(_api_key_header)):
+    expected = os.getenv("API_SECRET_KEY")
+    if not expected or key != expected:
+        raise HTTPException(status_code=403, detail="Brak dostępu")
+    return key
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("CORS_ORIGINS", "").split(","),
@@ -24,6 +34,9 @@ app.add_middleware(
 
 redis_conn = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
 task_queue = Queue("content", connection=redis_conn)
+
+# Wszystkie endpointy /api/* wymagają poprawnego X-API-Key
+api_deps = [Security(verify_api_key)]
 
 
 class CreateTaskRequest(BaseModel):
@@ -40,7 +53,7 @@ class AddDocumentRequest(BaseModel):
     doc_type: str
 
 
-@app.post("/api/tasks")
+@app.post("/api/tasks", dependencies=api_deps)
 async def create_task(request: CreateTaskRequest):
     result = supabase.table("tasks").insert({
         "topic": request.topic,
@@ -55,7 +68,7 @@ async def create_task(request: CreateTaskRequest):
     return {"task_id": task_id, "status": "pending"}
 
 
-@app.get("/api/tasks")
+@app.get("/api/tasks", dependencies=api_deps)
 async def get_tasks():
     result = supabase.table("tasks")\
         .select("*")\
@@ -64,7 +77,7 @@ async def get_tasks():
     return result.data
 
 
-@app.get("/api/tasks/{task_id}")
+@app.get("/api/tasks/{task_id}", dependencies=api_deps)
 async def get_task(task_id: str):
     result = supabase.table("tasks")\
         .select("*")\
@@ -78,7 +91,7 @@ async def get_task(task_id: str):
     return result.data
 
 
-@app.post("/api/tasks/{task_id}/approve")
+@app.post("/api/tasks/{task_id}/approve", dependencies=api_deps)
 async def approve_task(task_id: str):
     supabase.table("tasks").update({
         "status": "published",
@@ -88,7 +101,7 @@ async def approve_task(task_id: str):
     return {"status": "published", "message": "Post zatwierdzony i oznaczony do publikacji"}
 
 
-@app.post("/api/tasks/{task_id}/revise")
+@app.post("/api/tasks/{task_id}/revise", dependencies=api_deps)
 async def revise_task(task_id: str, request: ReviseTaskRequest):
     current = supabase.table("tasks").select("iteration")\
         .eq("id", task_id).single().execute()
@@ -105,7 +118,7 @@ async def revise_task(task_id: str, request: ReviseTaskRequest):
     return {"status": "pending", "message": "Wysłano do poprawki"}
 
 
-@app.post("/api/rag/documents")
+@app.post("/api/rag/documents", dependencies=api_deps)
 async def add_rag_document(request: AddDocumentRequest):
     chunk_count = add_document(
         name=request.name,
@@ -123,7 +136,7 @@ async def add_rag_document(request: AddDocumentRequest):
     return {"message": f"Dodano dokument ({chunk_count} chunków)"}
 
 
-@app.post("/api/rag/documents/upload")
+@app.post("/api/rag/documents/upload", dependencies=api_deps)
 async def upload_rag_file(
     file: UploadFile = File(...),
     doc_type: str = "company_info"
@@ -154,7 +167,7 @@ async def upload_rag_file(
     return {"message": f"Wgrano {file.filename} ({chunk_count} chunków)"}
 
 
-@app.get("/api/rag/documents")
+@app.get("/api/rag/documents", dependencies=api_deps)
 async def get_rag_documents():
     result = supabase.table("rag_documents")\
         .select("id, name, doc_type, chunk_count, created_at")\
@@ -163,7 +176,7 @@ async def get_rag_documents():
     return result.data
 
 
-@app.delete("/api/rag/documents/{doc_id}")
+@app.delete("/api/rag/documents/{doc_id}", dependencies=api_deps)
 async def delete_rag_document(doc_id: str):
     doc = supabase.table("rag_documents").select("name")\
         .eq("id", doc_id).single().execute()
