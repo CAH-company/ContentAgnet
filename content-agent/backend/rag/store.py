@@ -4,9 +4,8 @@ import tiktoken
 import hashlib
 import random
 
-chroma_client = chromadb.HttpClient(
-    host=os.getenv("CHROMA_HOST", "localhost"),
-    port=int(os.getenv("CHROMA_PORT", "8001"))
+chroma_client = chromadb.PersistentClient(
+    path=os.getenv("CHROMA_PATH", "/opt/content-agent/chroma_data")
 )
 
 collection = chroma_client.get_or_create_collection(
