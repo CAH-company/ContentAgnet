@@ -1,15 +1,18 @@
 import chromadb
 import os
 import tiktoken
-import hashlib
-import random
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
-chroma_client = chromadb.PersistentClient(
-    path=os.getenv("CHROMA_PATH", "/opt/content-agent/chroma_data")
+chroma_client = chromadb.HttpClient(
+    host=os.getenv("CHROMA_HOST", "localhost"),
+    port=int(os.getenv("CHROMA_PORT", "8000"))
 )
+
+embedding_fn = DefaultEmbeddingFunction()
 
 collection = chroma_client.get_or_create_collection(
     name="company_knowledge",
+    embedding_function=embedding_fn,
     metadata={"hnsw:space": "cosine"}
 )
 
@@ -20,42 +23,20 @@ def chunk_text(text: str, max_tokens: int = 500, overlap: int = 50) -> list[str]
     tokens = tokenizer.encode(text)
     chunks = []
     start = 0
-
     while start < len(tokens):
         end = min(start + max_tokens, len(tokens))
-        chunk_tokens = tokens[start:end]
-        chunk = tokenizer.decode(chunk_tokens)
-        chunks.append(chunk)
+        chunks.append(tokenizer.decode(tokens[start:end]))
         start += max_tokens - overlap
-
     return chunks
-
-
-def get_embedding(text: str) -> list[float]:
-    # MVP: hash-based pseudo-embedding (replace with voyage-3 or sentence-transformers in prod)
-    hash_val = int(hashlib.md5(text.encode()).hexdigest(), 16)
-    rng = random.Random(hash_val)
-    return [rng.uniform(-1, 1) for _ in range(384)]
 
 
 def add_document(name: str, content: str, doc_type: str) -> int:
     chunks = chunk_text(content)
-
-    for i, chunk in enumerate(chunks):
-        chunk_id = f"{name}_{i}"
-        embedding = get_embedding(chunk)
-
-        collection.upsert(
-            ids=[chunk_id],
-            embeddings=[embedding],
-            documents=[chunk],
-            metadatas=[{
-                "source": name,
-                "doc_type": doc_type,
-                "chunk_index": i
-            }]
-        )
-
+    collection.upsert(
+        ids=[f"{name}_{i}" for i in range(len(chunks))],
+        documents=chunks,
+        metadatas=[{"source": name, "doc_type": doc_type, "chunk_index": i} for i in range(len(chunks))]
+    )
     return len(chunks)
 
 
@@ -63,19 +44,15 @@ def search_documents(query: str, n_results: int = 5) -> list[str]:
     if collection.count() == 0:
         return []
 
-    query_embedding = get_embedding(query)
-
     results = collection.query(
-        query_embeddings=[query_embedding],
+        query_texts=[query],
         n_results=min(n_results, collection.count()),
         include=["documents", "metadatas"]
     )
 
     output = []
     for doc, meta in zip(results["documents"][0], results["metadatas"][0]):
-        source_info = f"[Źródło: {meta['source']} | Typ: {meta['doc_type']}]"
-        output.append(f"{source_info}\n{doc}")
-
+        output.append(f"[Źródło: {meta['source']} | Typ: {meta['doc_type']}]\n{doc}")
     return output
 
 

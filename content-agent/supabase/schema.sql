@@ -4,8 +4,8 @@ create table tasks (
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   topic text not null,
-  platform text not null check (platform in ('wordpress','linkedin','twitter')),
-  post_type text not null check (post_type in ('article','short_post','newsletter')),
+  platform text not null check (platform in ('blog','linkedin','twitter','facebook','instagram')),
+  post_type text not null check (post_type in ('article','short_post','newsletter','carousel')),
   status text not null default 'pending'
     check (status in ('pending','running','review','approved','published','failed')),
   result text,

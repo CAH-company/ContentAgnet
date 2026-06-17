@@ -4,6 +4,38 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 
+const PLATFORMS = [
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'blog', label: 'Blog' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'twitter', label: 'Twitter/X' },
+]
+
+const PLATFORM_POST_TYPES: Record<string, { value: string; label: string }[]> = {
+  blog: [
+    { value: 'article', label: 'Artykuł' },
+    { value: 'newsletter', label: 'Newsletter' },
+  ],
+  linkedin: [
+    { value: 'short_post', label: 'Krótki post' },
+    { value: 'article', label: 'Artykuł' },
+    { value: 'newsletter', label: 'Newsletter' },
+    { value: 'carousel', label: 'Karuzela' },
+  ],
+  twitter: [
+    { value: 'short_post', label: 'Krótki post' },
+  ],
+  facebook: [
+    { value: 'short_post', label: 'Krótki post' },
+    { value: 'article', label: 'Artykuł' },
+  ],
+  instagram: [
+    { value: 'short_post', label: 'Podpis (caption)' },
+    { value: 'carousel', label: 'Karuzela' },
+  ],
+}
+
 export function TaskForm() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -13,6 +45,11 @@ export function TaskForm() {
     platform: 'linkedin',
     post_type: 'short_post',
   })
+
+  const handlePlatformChange = (platform: string) => {
+    const firstType = PLATFORM_POST_TYPES[platform][0].value
+    setForm(f => ({ ...f, platform, post_type: firstType }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,6 +64,8 @@ export function TaskForm() {
       setLoading(false)
     }
   }
+
+  const postTypes = PLATFORM_POST_TYPES[form.platform] ?? []
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5 max-w-lg">
@@ -49,12 +88,12 @@ export function TaskForm() {
           <label className="block text-sm font-medium text-gray-700 mb-1">Platforma</label>
           <select
             value={form.platform}
-            onChange={e => setForm(f => ({ ...f, platform: e.target.value }))}
+            onChange={e => handlePlatformChange(e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="linkedin">LinkedIn</option>
-            <option value="wordpress">WordPress</option>
-            <option value="twitter">Twitter/X</option>
+            {PLATFORMS.map(p => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
           </select>
         </div>
         <div>
@@ -64,9 +103,9 @@ export function TaskForm() {
             onChange={e => setForm(f => ({ ...f, post_type: e.target.value }))}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="short_post">Krótki post</option>
-            <option value="article">Artykuł</option>
-            <option value="newsletter">Newsletter</option>
+            {postTypes.map(t => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
           </select>
         </div>
       </div>

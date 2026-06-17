@@ -1,5 +1,5 @@
-export type Platform = 'wordpress' | 'linkedin' | 'twitter'
-export type PostType = 'article' | 'short_post' | 'newsletter'
+export type Platform = 'blog' | 'linkedin' | 'twitter' | 'facebook' | 'instagram'
+export type PostType = 'article' | 'short_post' | 'newsletter' | 'carousel'
 export type TaskStatus = 'pending' | 'running' | 'review' | 'approved' | 'published' | 'failed'
 export type DocType = 'brand_voice' | 'example_post' | 'company_info' | 'keywords'
 

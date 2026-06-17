@@ -3,15 +3,18 @@ import { Task } from '@/lib/types'
 import { StatusBadge } from './StatusBadge'
 
 const platformLabel: Record<string, string> = {
-  wordpress: 'WordPress',
+  blog: 'Blog',
   linkedin: 'LinkedIn',
   twitter: 'Twitter/X',
+  facebook: 'Facebook',
+  instagram: 'Instagram',
 }
 
 const postTypeLabel: Record<string, string> = {
   article: 'Artykuł',
   short_post: 'Krótki post',
   newsletter: 'Newsletter',
+  carousel: 'Karuzela',
 }
 
 export function TaskCard({ task }: { task: Task }) {

@@ -94,14 +94,21 @@ class ContentMarketingCrew:
                            "danymi i proponowanym kątem narracyjnym"
         )
 
+        platform_length_guide = {
+            "blog":      "600–1200 słów, struktura H2/H3, akapity 3-4 zdania",
+            "linkedin":  "150–300 słów (short_post), 400–700 słów (article/newsletter), 8–12 slajdów (carousel)",
+            "twitter":   "max 280 znaków — liczy się każdy znak",
+            "facebook":  "100–400 słów, konwersacyjny, jeden wyraźny przekaz",
+            "instagram": "max 125 znaków widocznych przed 'więcej' (caption), 5–10 slajdów (carousel)",
+        }.get(platform, "dopasuj długość do platformy")
+
         write_task = Task(
             description=f"""
             Na podstawie briefu od Researchera napisz {post_type} na {platform}.
 
             Wymagania:
             - Użyj brand voice z dokumentów firmy
-            - Dostosuj długość do platformy
-              (LinkedIn: 150-300 słów, WP: 400-800 słów, Twitter: max 280 znaków)
+            - Wytyczne długości: {platform_length_guide}
             - Zacznij od mocnego hooka
             - Dodaj wyraźne CTA na końcu
 
@@ -126,12 +133,18 @@ class ContentMarketingCrew:
             expected_output="Poprawiony, gotowy do publikacji post"
         )
 
+        platform_format_guide = {
+            "blog":      "Markdown: ## i ### nagłówki, **bold**, listy, na końcu sugestia meta-opisu (max 155 znaków)",
+            "linkedin":  "Krótkie akapity oddzielone enterem, emoji dozwolone (z umiarem), 3–5 hashtagów na końcu. Carousel: każdy slajd jako 'Slajd N: [tytuł]\n[treść]'",
+            "twitter":   "Maksymalnie 280 znaków łącznie ze spacjami, 2–3 hashtagi wliczone w limit",
+            "facebook":  "Naturalny styl, akapity, emoji dozwolone, 0–3 hashtagi opcjonalnie na końcu",
+            "instagram": "Caption: pierwsza linijka to hook (widoczna przed 'więcej'), emoji w tekście, 20–30 hashtagów na samym końcu po pustej linii. Carousel: każdy slajd jako 'Slajd N: [tytuł]\n[treść]'",
+        }.get(platform, "dopasuj formatowanie do platformy")
+
         publish_task = Task(
             description=f"""
             Sformatuj finalny post na platformę {platform}:
-            - WordPress: użyj Markdown (## nagłówki, **bold**, listy)
-            - LinkedIn: paragrafowy styl, emoji dozwolone, hashtagi na końcu
-            - Twitter/X: zwięźle, max 280 znaków, 2-3 hashtagi
+            {platform_format_guide}
 
             Zwróć TYLKO gotowy post bez żadnych komentarzy od siebie.
             """,
