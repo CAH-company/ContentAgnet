@@ -1,6 +1,5 @@
 from crewai import Agent, Task, Crew, Process
-from crewai_tools import SerperDevTool
-from .tools import rag_search_tool
+from .tools import rag_search_tool, web_search_tool
 import os
 
 
@@ -8,7 +7,7 @@ class ContentMarketingCrew:
 
     def __init__(self):
         self.llm = "claude-sonnet-4-5"
-        self.search_tool = SerperDevTool()
+        self.search_tool = web_search_tool
 
     def run(self, context: dict) -> dict:
         topic = context["topic"]
