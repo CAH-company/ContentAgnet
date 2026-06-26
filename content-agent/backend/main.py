@@ -27,8 +27,9 @@ app.add_middleware(
 redis_conn = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
 task_queue = Queue("content", connection=redis_conn)
 
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
 MAX_CONCURRENT_TASKS = 2          # max zadań pending/running na usera
+RAG_DOCUMENT_LIMIT = 5            # max dokumentów RAG na usera
 
 
 # --- Auth ---
@@ -171,8 +172,8 @@ async def add_rag_document(request: AddDocumentRequest, user: dict = Depends(get
         .select("id", count="exact")\
         .eq("user_id", user["id"])\
         .execute()
-    if count_result.count >= 3:
-        raise HTTPException(status_code=400, detail="Limit 3 dokumentów na użytkownika")
+    if count_result.count >= RAG_DOCUMENT_LIMIT:
+        raise HTTPException(status_code=400, detail=f"Limit {RAG_DOCUMENT_LIMIT} dokumentów na użytkownika")
 
     chunk_count = add_document(
         name=request.name,
@@ -205,12 +206,12 @@ async def upload_rag_file(
         .select("id", count="exact")\
         .eq("user_id", user["id"])\
         .execute()
-    if count_result.count >= 3:
-        raise HTTPException(status_code=400, detail="Limit 3 dokumentów na użytkownika")
+    if count_result.count >= RAG_DOCUMENT_LIMIT:
+        raise HTTPException(status_code=400, detail=f"Limit {RAG_DOCUMENT_LIMIT} dokumentów na użytkownika")
 
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="Plik za duży — maksymalnie 5 MB")
+        raise HTTPException(status_code=400, detail="Plik za duży — maksymalnie 8 MB")
 
     filename = file.filename or "dokument"
     if filename.lower().endswith(".pdf"):
@@ -221,13 +222,13 @@ async def upload_rag_file(
             text = "\n".join(page.extract_text() or "" for page in reader.pages)
         except Exception:
             raise HTTPException(status_code=400, detail="Nie udało się odczytać pliku PDF")
-    elif filename.lower().endswith(".txt"):
+    elif filename.lower().endswith((".txt", ".md")):
         try:
             text = content.decode("utf-8")
         except UnicodeDecodeError:
-            raise HTTPException(status_code=400, detail="Plik TXT musi być w kodowaniu UTF-8")
+            raise HTTPException(status_code=400, detail="Plik musi być w kodowaniu UTF-8")
     else:
-        raise HTTPException(status_code=400, detail="Dozwolone formaty: PDF, TXT")
+        raise HTTPException(status_code=400, detail="Dozwolone formaty: PDF, TXT, MD")
 
     if not text.strip():
         raise HTTPException(status_code=400, detail="Plik jest pusty lub nie zawiera tekstu")
