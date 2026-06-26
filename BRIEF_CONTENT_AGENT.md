@@ -2,7 +2,7 @@
 
 > Wklej ten plik do folderu projektu i powiedz Claude Code: "Przeczytaj BRIEF_CONTENT_AGENT.md i zbuduj cały projekt zgodnie ze specyfikacją."
 
----
+
 
 ## Co budujesz
 
@@ -151,17 +151,19 @@ create policy "allow all for now" on rag_documents for all using (true);
 ### backend/.env.example
 ```
 ANTHROPIC_API_KEY=sk-ant-...
-SERPER_API_KEY=...
+VOYAGE_API_KEY=pa-...
 SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_KEY=eyJ...
 REDIS_URL=redis://redis:6379
 CHROMA_HOST=chromadb
-CHROMA_PORT=8001
-LANGFUSE_PUBLIC_KEY=pk-lf-...
-LANGFUSE_SECRET_KEY=sk-lf-...
+CHROMA_PORT=8000
+SEARXNG_URL=http://searxng:8080
+SEARXNG_SECRET_KEY=zmien-na-dlugi-losowy-ciag-znakow
 CORS_ORIGINS=https://twoj-projekt.vercel.app,http://localhost:3000
 ```
+
+> **Usunięte:** `API_SECRET_KEY` (zastąpiony Supabase JWT), `TAVILY_API_KEY` (zastąpiony SearXNG)
 
 ---
 
@@ -957,6 +959,8 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 ```
 
+> **Usunięte:** `NEXT_PUBLIC_API_SECRET_KEY` — auth przez Supabase JWT (bezpieczniejsze)
+
 ---
 
 ## Polecenia dla Claude Code
@@ -976,16 +980,20 @@ cd content-agent
 
 # 3. Uzupełnij zmienne środowiskowe
 cp backend/.env.example backend/.env
-nano backend/.env   # wklej swoje klucze API
+nano backend/.env   # wklej swoje klucze API (pamiętaj o SEARXNG_SECRET_KEY!)
 
-# 4. Uruchom cały stack
+# 4. Nadaj uprawnienia zapisu do folderu SearXNG (wymagane przez kontener)
+chmod 777 searxng/
+
+# 5. Uruchom cały stack
 docker compose up -d
 
-# 5. Sprawdź czy działa
+# 6. Sprawdź czy działa
 docker compose ps
 curl http://localhost:8000/api/health
+curl "http://localhost:8080/search?q=test&format=json"  # test SearXNG (tylko z VPS)
 
-# 6. Zainstaluj Nginx i certyfikat HTTPS
+# 7. Zainstaluj Nginx i certyfikat HTTPS
 apt install nginx certbot python3-certbot-nginx -y
 # Zamień TWOJA_DOMENA w nginx.conf na swoją domenę
 cp nginx/nginx.conf /etc/nginx/sites-available/content-agent
@@ -996,11 +1004,28 @@ nginx -s reload
 # === Supabase ===
 # Wejdź na supabase.com → SQL Editor → wklej supabase/schema.sql → Run
 
+# === Tworzenie pierwszego admina ===
+# 1. Wejdź na supabase.com → Authentication → Users → "Add user"
+# 2. Wpisz swój email i hasło
+# 3. W SQL Editor wykonaj:
+#    UPDATE user_profiles SET role = 'admin' WHERE email = 'twoj@email.com';
+# 4. Zaloguj się do aplikacji — zobaczysz zakładkę "Admin" w nawigacji
+# 5. Przez panel Admin możesz tworzyć konta dla testujących użytkowników
+
 # === Vercel ===
 cd frontend
 npx vercel deploy
-# Ustaw zmienne środowiskowe w Vercel Dashboard
+# Ustaw zmienne środowiskowe w Vercel Dashboard:
+# NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
 ```
+
+### Ważne informacje o multi-user
+
+- **Izolacja RAG:** Każdy użytkownik ma osobną bazę wiedzy, max 3 dokumenty
+- **Izolacja zadań:** Użytkownik widzi tylko swoje posty
+- **SearXNG:** Działa tylko wewnątrz sieci Docker (port niewystawiony na zewnątrz)
+- **Wyszukiwanie:** Google i Yahoo wyłączone (ryzyko bana IP). Aktywne: Bing, DuckDuckGo, Brave, Startpage (proxy Google), Qwant
+- **Koszty tokenów:** Wyświetlane na stronie każdego posta (wejście + wyjście + łączny koszt w $)
 
 ---
 

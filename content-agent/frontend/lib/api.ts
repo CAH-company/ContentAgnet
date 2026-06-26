@@ -1,13 +1,22 @@
 import { Task, RagDocument } from './types'
+import { createClient } from './supabase-client'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const API_KEY = process.env.NEXT_PUBLIC_API_SECRET_KEY || ''
+
+async function getAuthHeader(): Promise<string> {
+  const supabase = createClient()
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) throw new Error('Brak sesji — zaloguj się ponownie')
+  return `Bearer ${token}`
+}
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const auth = await getAuthHeader()
   const res = await fetch(`${API_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
-      'X-API-Key': API_KEY,
+      'Authorization': auth,
     },
     ...options,
   })
@@ -44,18 +53,36 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    upload: (file: File, doc_type: string) => {
+    upload: async (file: File, doc_type: string) => {
+      const auth = await getAuthHeader()
       const form = new FormData()
       form.append('file', file)
       form.append('doc_type', doc_type)
-      return fetch(`${API_URL}/api/rag/documents/upload`, {
+      const res = await fetch(`${API_URL}/api/rag/documents/upload`, {
         method: 'POST',
-        headers: { 'X-API-Key': API_KEY },
+        headers: { 'Authorization': auth },
         body: form,
-      }).then(r => r.json()) as Promise<{ message: string }>
+      })
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: res.statusText }))
+        throw new Error(error.detail || 'Upload error')
+      }
+      return res.json() as Promise<{ message: string }>
     },
     delete: (id: string) =>
       apiFetch<{ message: string }>(`/api/rag/documents/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+  admin: {
+    listUsers: () => apiFetch<{ id: string; email: string; role: string; created_at: string }[]>('/api/admin/users'),
+    createUser: (email: string, password: string) =>
+      apiFetch<{ id: string; email: string }>('/api/admin/users', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
+    deleteUser: (userId: string) =>
+      apiFetch<{ message: string }>(`/api/admin/users/${userId}`, {
         method: 'DELETE',
       }),
   },

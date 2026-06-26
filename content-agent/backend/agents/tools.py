@@ -1,8 +1,8 @@
 import os
+import httpx
 from crewai.tools import BaseTool
 from rag.store import search_documents
 from pydantic import BaseModel
-from tavily import TavilyClient
 
 
 class RagSearchInput(BaseModel):
@@ -18,9 +18,10 @@ class RagSearchTool(BaseTool):
         "Zawsze wywołaj to narzędzie na początku pracy."
     )
     args_schema: type[BaseModel] = RagSearchInput
+    user_id: str = ""
 
     def _run(self, query: str) -> str:
-        results = search_documents(query, n_results=5)
+        results = search_documents(query, user_id=self.user_id, n_results=5)
         if not results:
             return "Brak relevantnych dokumentów w bazie wiedzy."
         return "\n\n---\n\n".join(results)
@@ -39,16 +40,28 @@ class WebSearchTool(BaseTool):
     args_schema: type[BaseModel] = WebSearchInput
 
     def _run(self, query: str) -> str:
-        client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-        response = client.search(query, max_results=5, search_depth="basic")
-        results = response.get("results", [])
+        searxng_url = os.getenv("SEARXNG_URL", "http://searxng:8080")
+        try:
+            resp = httpx.get(
+                f"{searxng_url}/search",
+                params={"q": query, "format": "json", "language": "pl-PL"},
+                timeout=15
+            )
+            resp.raise_for_status()
+            results = resp.json().get("results", [])[:5]
+        except Exception as e:
+            return f"Błąd wyszukiwania: {e}"
+
         if not results:
             return "Brak wyników wyszukiwania."
+
         output = []
         for r in results:
-            output.append(f"**{r['title']}**\n{r['url']}\n{r['content']}")
+            title = r.get("title", "")
+            url = r.get("url", "")
+            content = r.get("content", "")
+            output.append(f"**{title}**\n{url}\n{content}")
         return "\n\n---\n\n".join(output)
 
 
-rag_search_tool = RagSearchTool()
 web_search_tool = WebSearchTool()

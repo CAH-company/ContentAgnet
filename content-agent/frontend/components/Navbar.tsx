@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase-client'
 
-const links = [
+const baseLinks = [
   { href: '/',     label: 'Dashboard' },
   { href: '/new',  label: 'Nowe zadanie' },
   { href: '/rag',  label: 'Baza wiedzy' },
@@ -13,6 +14,22 @@ const links = [
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    async function checkRole() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      if (data?.role === 'admin') setIsAdmin(true)
+    }
+    checkRole()
+  }, [])
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -20,6 +37,10 @@ export function Navbar() {
     router.push('/login')
     router.refresh()
   }
+
+  const links = isAdmin
+    ? [...baseLinks, { href: '/admin/users', label: 'Admin' }]
+    : baseLinks
 
   return (
     <nav className="bg-white border-b border-gray-200">

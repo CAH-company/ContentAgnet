@@ -5,6 +5,18 @@ import { Task } from '@/lib/types'
 import { api } from '@/lib/api'
 import { StatusBadge } from './StatusBadge'
 
+// Claude Sonnet 4-5 pricing (USD per million tokens)
+const INPUT_COST_PER_MTK = 3.00
+const OUTPUT_COST_PER_MTK = 15.00
+
+function calcCost(inputTokens: number, outputTokens: number): string {
+  const cost = (inputTokens / 1_000_000) * INPUT_COST_PER_MTK
+             + (outputTokens / 1_000_000) * OUTPUT_COST_PER_MTK
+  if (cost < 0.001) return '~$0.00'
+  if (cost < 0.01) return `~$${cost.toFixed(4)}`
+  return `~$${cost.toFixed(3)}`
+}
+
 interface Props {
   task: Task
   onUpdate: (task: Task) => void
@@ -53,8 +65,10 @@ export function ApprovalView({ task, onUpdate }: Props) {
           <span className="text-xs text-gray-500">iteracja {task.iteration}</span>
         )}
         {task.token_input > 0 && (
-          <span className="text-xs text-gray-400 ml-auto">
-            {task.token_input + task.token_output} tokenów
+          <span className="text-xs text-gray-400 ml-auto" title={`In: ${task.token_input.toLocaleString()} | Out: ${task.token_output.toLocaleString()}`}>
+            {(task.token_input + task.token_output).toLocaleString()} tokenów
+            {' · '}
+            {calcCost(task.token_input, task.token_output)}
           </span>
         )}
       </div>

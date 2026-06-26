@@ -6,7 +6,7 @@ from agents.crew import ContentMarketingCrew
 load_dotenv()
 
 
-def run_agent_task(task_id: str, revision: bool = False):
+def run_agent_task(task_id: str, user_id: str, revision: bool = False):
     try:
         task = supabase.table("tasks").select("*")\
             .eq("id", task_id).single().execute().data
@@ -28,7 +28,7 @@ def run_agent_task(task_id: str, revision: bool = False):
             context["previous_result"] = task["result"]
             context["revision_comment"] = task["user_comment"]
 
-        crew = ContentMarketingCrew()
+        crew = ContentMarketingCrew(user_id=user_id)
         result = crew.run(context)
 
         supabase.table("tasks").update({

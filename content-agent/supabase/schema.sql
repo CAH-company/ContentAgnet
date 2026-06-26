@@ -1,8 +1,18 @@
+-- Profil użytkownika z rolą (tworzony automatycznie przy rejestracji)
+create table user_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  role text not null default 'user'
+    check (role in ('user', 'admin')),
+  created_at timestamptz default now()
+);
+
 -- Zadania agenta
 create table tasks (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
+  user_id uuid not null references auth.users(id) on delete cascade,
   topic text not null,
   platform text not null check (platform in ('blog','linkedin','twitter','facebook','instagram')),
   post_type text not null check (post_type in ('article','short_post','newsletter','carousel')),
@@ -21,6 +31,7 @@ create table tasks (
 create table rag_documents (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz default now(),
+  user_id uuid not null references auth.users(id) on delete cascade,
   name text not null,
   content text not null,
   doc_type text not null
@@ -41,9 +52,33 @@ create trigger tasks_updated_at
   before update on tasks
   for each row execute function update_updated_at();
 
--- Włącz RLS (Row Level Security) — na razie przepuszcza wszystko
+-- Trigger: auto-tworzenie user_profiles przy rejestracji nowego użytkownika
+create or replace function handle_new_user()
+returns trigger as $$
+begin
+  insert into public.user_profiles (id, email, role)
+  values (new.id, new.email, 'user');
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function handle_new_user();
+
+-- RLS (Row Level Security)
+alter table user_profiles enable row level security;
 alter table tasks enable row level security;
 alter table rag_documents enable row level security;
 
-create policy "allow all for now" on tasks for all using (true);
-create policy "allow all for now" on rag_documents for all using (true);
+-- user_profiles: każdy widzi tylko swój profil (backend używa service_key = widzi wszystko)
+create policy "user_profiles_own" on user_profiles
+  for all using (auth.uid() = id);
+
+-- tasks: user widzi tylko swoje zadania
+create policy "tasks_own" on tasks
+  for all using (auth.uid() = user_id);
+
+-- rag_documents: user widzi tylko swoje dokumenty
+create policy "rag_documents_own" on rag_documents
+  for all using (auth.uid() = user_id);

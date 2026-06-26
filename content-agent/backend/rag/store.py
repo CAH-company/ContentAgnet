@@ -28,28 +28,40 @@ def chunk_text(text: str, max_tokens: int = 500, overlap: int = 50) -> list[str]
     return chunks
 
 
-def add_document(name: str, content: str, doc_type: str) -> int:
+def add_document(name: str, content: str, doc_type: str, user_id: str) -> int:
     chunks = chunk_text(content)
     embeddings = _voyage.embed(chunks, model="voyage-3-lite", input_type="document").embeddings
 
     collection.upsert(
-        ids=[f"{name}_{i}" for i in range(len(chunks))],
+        ids=[f"{user_id}_{name}_{i}" for i in range(len(chunks))],
         embeddings=embeddings,
         documents=chunks,
-        metadatas=[{"source": name, "doc_type": doc_type, "chunk_index": i} for i in range(len(chunks))]
+        metadatas=[{
+            "source": name,
+            "doc_type": doc_type,
+            "chunk_index": i,
+            "user_id": user_id
+        } for i in range(len(chunks))]
     )
     return len(chunks)
 
 
-def search_documents(query: str, n_results: int = 5) -> list[str]:
-    if collection.count() == 0:
+def search_documents(query: str, user_id: str, n_results: int = 5) -> list[str]:
+    user_count = collection.count()
+    if user_count == 0:
+        return []
+
+    # Sprawdź ile chunków ma ten user
+    user_docs = collection.get(where={"user_id": user_id})
+    if not user_docs["ids"]:
         return []
 
     query_embedding = _voyage.embed([query], model="voyage-3-lite", input_type="query").embeddings[0]
 
     results = collection.query(
         query_embeddings=[query_embedding],
-        n_results=min(n_results, collection.count()),
+        n_results=min(n_results, len(user_docs["ids"])),
+        where={"user_id": user_id},
         include=["documents", "metadatas"]
     )
 
@@ -59,14 +71,14 @@ def search_documents(query: str, n_results: int = 5) -> list[str]:
     return output
 
 
-def delete_document(name: str):
-    results = collection.get(where={"source": name})
+def delete_document(name: str, user_id: str):
+    results = collection.get(where={"$and": [{"source": name}, {"user_id": user_id}]})
     if results["ids"]:
         collection.delete(ids=results["ids"])
 
 
-def list_documents() -> list[dict]:
-    results = collection.get(include=["metadatas"])
+def list_documents(user_id: str) -> list[dict]:
+    results = collection.get(where={"user_id": user_id}, include=["metadatas"])
     seen = {}
     for meta in results["metadatas"]:
         src = meta["source"]

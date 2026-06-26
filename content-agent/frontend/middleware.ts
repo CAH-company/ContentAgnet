@@ -14,6 +14,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
+  // /admin — rola sprawdzana client-side w samej stronie (cookie nie zawiera roli)
   return NextResponse.next()
 }
 

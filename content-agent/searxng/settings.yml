@@ -1,0 +1,130 @@
+# SearXNG configuration — anti-ban setup
+# Google i Yahoo wyłączone — ryzyko bana IP serwera
+# Startpage = oficjalny proxy Google, bezpieczne
+
+general:
+  debug: false
+  instance_name: "ContentAgent Search"
+  privacypolicy_url: false
+  contact_url: false
+  enable_metrics: false
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "${SEARXNG_SECRET_KEY}"
+  base_url: false
+  image_proxy: false
+  limiter: true
+  public_instance: false
+
+redis:
+  url: redis://redis:6379/1
+
+ui:
+  static_use_hash: true
+  default_locale: "pl"
+  query_in_title: false
+  infinite_scroll: false
+  center_alignment: false
+  theme_args:
+    simple_style: auto
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "pl-PL"
+  max_page: 1
+  formats:
+    - html
+    - json
+
+outgoing:
+  request_timeout: 8.0
+  max_request_timeout: 15.0
+  useragent_suffix: ""
+  pool_connections: 100
+  pool_maxsize: 20
+  enable_http2: true
+
+engines:
+  # --- BEZPIECZNE SILNIKI ---
+
+  - name: bing
+    engine: bing
+    shortcut: b
+    enabled: true
+    timeout: 8.0
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: d
+    enabled: true
+    timeout: 8.0
+
+  - name: brave
+    engine: brave
+    shortcut: br
+    api_key: false
+    enabled: true
+    timeout: 8.0
+
+  - name: startpage
+    # Oficjalny proxy Google — ich IP dostaje bana, nie Twój
+    engine: startpage
+    shortcut: sp
+    enabled: true
+    timeout: 8.0
+
+  - name: qwant
+    engine: qwant
+    shortcut: q
+    enabled: true
+    timeout: 8.0
+
+  - name: mojeek
+    engine: mojeek
+    shortcut: mj
+    enabled: true
+    timeout: 8.0
+
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: w
+    enabled: true
+    timeout: 6.0
+    language: pl
+
+  # --- WYŁĄCZONE — ryzyko bana IP ---
+
+  - name: google
+    engine: google
+    shortcut: g
+    enabled: false
+
+  - name: google news
+    engine: google_news
+    shortcut: gn
+    enabled: false
+
+  - name: yahoo
+    engine: yahoo
+    shortcut: yh
+    enabled: false
+
+  - name: bing news
+    engine: bing_news
+    shortcut: bn
+    enabled: false
+
+  # --- INNE — wyłączone (nie potrzebujemy) ---
+
+  - name: wikidata
+    engine: wikidata
+    shortcut: wd
+    enabled: false
+
+  - name: wolframalpha
+    engine: wolframalpha_noapi
+    shortcut: wa
+    enabled: false

@@ -1,13 +1,14 @@
 from crewai import Agent, Task, Crew, Process
-from .tools import rag_search_tool, web_search_tool
+from .tools import RagSearchTool, web_search_tool
 import os
 
 
 class ContentMarketingCrew:
 
-    def __init__(self):
+    def __init__(self, user_id: str):
         self.llm = "claude-sonnet-4-5"
         self.search_tool = web_search_tool
+        self.rag_tool = RagSearchTool(user_id=user_id)
 
     def run(self, context: dict) -> dict:
         topic = context["topic"]
@@ -34,7 +35,7 @@ class ContentMarketingCrew:
             backstory="Jesteś doświadczonym researcherem content marketingu. "
                       "Zawsze szukasz unikalnych perspektyw i aktualnych danych. "
                       "Znasz markę firmy i jej styl komunikacji z dokumentów.",
-            tools=[self.search_tool, rag_search_tool],
+            tools=[self.search_tool, self.rag_tool],
             llm=self.llm,
             verbose=True
         )
@@ -46,7 +47,7 @@ class ContentMarketingCrew:
             backstory="Jesteś ekspertem w pisaniu content marketingowego. "
                       "Piszesz w stylu marki, angażująco i naturalnie. "
                       "Zawsze używasz brand voice i przykładowych postów z dokumentów.",
-            tools=[rag_search_tool],
+            tools=[self.rag_tool],
             llm=self.llm,
             verbose=True
         )
@@ -58,7 +59,7 @@ class ContentMarketingCrew:
             backstory="Jesteś skrupulatnym redaktorem z doświadczeniem w SEO. "
                       "Sprawdzasz czy post brzmi naturalnie, jest zgodny z brand voice "
                       "i zoptymalizowany pod daną platformę.",
-            tools=[rag_search_tool],
+            tools=[self.rag_tool],
             llm=self.llm,
             verbose=True
         )
