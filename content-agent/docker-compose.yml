@@ -33,7 +33,7 @@ services:
       - redis_data:/data
 
   chromadb:
-    image: chromadb/chroma:latest
+    image: chromadb/chroma:0.5.23
     restart: unless-stopped
     ports:
       - "127.0.0.1:8001:8000"
