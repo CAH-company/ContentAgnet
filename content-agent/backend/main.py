@@ -276,6 +276,29 @@ async def delete_rag_document(doc_id: str, user: dict = Depends(get_current_user
 
 # --- Admin ---
 
+@app.get("/api/admin/stats")
+async def get_admin_stats(admin: dict = Depends(require_admin)):
+    result = supabase.table("tasks")\
+        .select("user_id, token_input, token_output")\
+        .execute()
+
+    stats: dict = {}
+    for row in result.data:
+        uid = row["user_id"]
+        if uid not in stats:
+            stats[uid] = {"token_input": 0, "token_output": 0}
+        stats[uid]["token_input"] += row["token_input"] or 0
+        stats[uid]["token_output"] += row["token_output"] or 0
+
+    # claude-sonnet-4-5: $3/M input, $15/M output
+    for uid in stats:
+        inp = stats[uid]["token_input"]
+        out = stats[uid]["token_output"]
+        stats[uid]["cost_usd"] = round((inp * 3 + out * 15) / 1_000_000, 4)
+
+    return stats
+
+
 @app.get("/api/admin/users")
 async def list_users(admin: dict = Depends(require_admin)):
     profiles = supabase.table("user_profiles")\

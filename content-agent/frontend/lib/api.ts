@@ -85,5 +85,7 @@ export const api = {
       apiFetch<{ message: string }>(`/api/admin/users/${userId}`, {
         method: 'DELETE',
       }),
+    getStats: () =>
+      apiFetch<Record<string, { token_input: number; token_output: number; cost_usd: number }>>('/api/admin/stats'),
   },
 }

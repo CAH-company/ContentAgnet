@@ -11,9 +11,16 @@ interface UserProfile {
   created_at: string
 }
 
+interface UserStat {
+  token_input: number
+  token_output: number
+  cost_usd: number
+}
+
 export default function AdminUsersPage() {
   const router = useRouter()
   const [users, setUsers] = useState<UserProfile[]>([])
+  const [stats, setStats] = useState<Record<string, UserStat>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [newEmail, setNewEmail] = useState('')
@@ -28,8 +35,12 @@ export default function AdminUsersPage() {
 
   async function loadUsers() {
     try {
-      const data = await api.admin.listUsers()
+      const [data, statsData] = await Promise.all([
+        api.admin.listUsers(),
+        api.admin.getStats(),
+      ])
       setUsers(data)
+      setStats(statsData)
     } catch (err: any) {
       if (err.message?.includes('403') || err.message?.includes('administrator')) {
         setError('Brak dostępu — tylko administrator może wyświetlić tę stronę.')
@@ -164,6 +175,11 @@ export default function AdminUsersPage() {
                     )}
                     {' · '}
                     {new Date(user.created_at).toLocaleDateString('pl-PL')}
+                    {' · '}
+                    <span className="text-gray-700 font-medium">
+                      ${(stats[user.id]?.cost_usd ?? 0).toFixed(4)}
+                    </span>
+                    <span className="text-gray-400"> USD</span>
                   </p>
                 </div>
                 {user.role !== 'admin' && (
