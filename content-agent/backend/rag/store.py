@@ -1,20 +1,34 @@
 import chromadb
 import os
+import time
 import tiktoken
 import voyageai
 
-chroma_client = chromadb.HttpClient(
-    host=os.getenv("CHROMA_HOST", "localhost"),
-    port=int(os.getenv("CHROMA_PORT", "8000"))
-)
-
-collection = chroma_client.get_or_create_collection(
-    name="company_knowledge",
-    metadata={"hnsw:space": "cosine"}
-)
+_chroma_client = None
+_collection = None
 
 _voyage = voyageai.Client(api_key=os.getenv("VOYAGE_API_KEY"))
 tokenizer = tiktoken.get_encoding("cl100k_base")
+
+
+def _get_collection():
+    global _chroma_client, _collection
+    if _collection is not None:
+        return _collection
+    host = os.getenv("CHROMA_HOST", "localhost")
+    port = int(os.getenv("CHROMA_PORT", "8000"))
+    for attempt in range(12):
+        try:
+            _chroma_client = chromadb.HttpClient(host=host, port=port)
+            _collection = _chroma_client.get_or_create_collection(
+                name="company_knowledge",
+                metadata={"hnsw:space": "cosine"}
+            )
+            return _collection
+        except Exception:
+            if attempt == 11:
+                raise
+            time.sleep(5)
 
 
 def chunk_text(text: str, max_tokens: int = 500, overlap: int = 50) -> list[str]:
@@ -32,7 +46,7 @@ def add_document(name: str, content: str, doc_type: str, user_id: str) -> int:
     chunks = chunk_text(content)
     embeddings = _voyage.embed(chunks, model="voyage-3-lite", input_type="document").embeddings
 
-    collection.upsert(
+    _get_collection().upsert(
         ids=[f"{user_id}_{name}_{i}" for i in range(len(chunks))],
         embeddings=embeddings,
         documents=chunks,
@@ -47,18 +61,18 @@ def add_document(name: str, content: str, doc_type: str, user_id: str) -> int:
 
 
 def search_documents(query: str, user_id: str, n_results: int = 5) -> list[str]:
-    user_count = collection.count()
+    col = _get_collection()
+    user_count = col.count()
     if user_count == 0:
         return []
 
-    # Sprawdź ile chunków ma ten user
-    user_docs = collection.get(where={"user_id": user_id})
+    user_docs = col.get(where={"user_id": user_id})
     if not user_docs["ids"]:
         return []
 
     query_embedding = _voyage.embed([query], model="voyage-3-lite", input_type="query").embeddings[0]
 
-    results = collection.query(
+    results = col.query(
         query_embeddings=[query_embedding],
         n_results=min(n_results, len(user_docs["ids"])),
         where={"user_id": user_id},
@@ -72,13 +86,14 @@ def search_documents(query: str, user_id: str, n_results: int = 5) -> list[str]:
 
 
 def delete_document(name: str, user_id: str):
-    results = collection.get(where={"$and": [{"source": name}, {"user_id": user_id}]})
+    col = _get_collection()
+    results = col.get(where={"$and": [{"source": name}, {"user_id": user_id}]})
     if results["ids"]:
-        collection.delete(ids=results["ids"])
+        col.delete(ids=results["ids"])
 
 
 def list_documents(user_id: str) -> list[dict]:
-    results = collection.get(where={"user_id": user_id}, include=["metadatas"])
+    results = _get_collection().get(where={"user_id": user_id}, include=["metadatas"])
     seen = {}
     for meta in results["metadatas"]:
         src = meta["source"]
